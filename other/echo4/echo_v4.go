@@ -21,6 +21,24 @@ import (
 	"time"
 )
 
+// Customize HTTP response status code and business status code.
+var (
+	CustomRespBadStatus = http.StatusBadRequest
+	CustomRespBadCode   = 1
+
+	CustomRespErrStatus = http.StatusInternalServerError
+	CustomRespErrCode   = 2
+
+	CustomRespFailedStatus = http.StatusOK
+	CustomRespFailedCode   = 1
+)
+
+// CustomRespTotal Customize the total number of response query data.
+var CustomRespTotal = func(s *Context, total int64) {
+	s.Context.Response().Header().Set("Total", fmt.Sprintf("%d", total))
+	s.RespTotal = &total
+}
+
 type Context struct {
 	echo.Context `json:"-"`
 
@@ -52,13 +70,13 @@ func (s *Context) SetMsg(msg string) *Context {
 	return s
 }
 
-func (s *Context) SetData(data any) *Context {
+func (s *Context) SetData(data interface{}) *Context {
 	s.RespData = data
 	return s
 }
 
 func (s *Context) SetTotal(total int64) *Context {
-	s.RespTotal = &total
+	CustomRespTotal(s, total)
 	return s
 }
 
@@ -66,49 +84,65 @@ func (s *Context) Ok() error {
 	return s.json()
 }
 
+// Bad Client parameter abnormality.
 func (s *Context) Bad(err error) error {
-	s.SetStatus(http.StatusBadRequest).SetCode(1)
+	s.SetStatus(CustomRespBadStatus).SetCode(CustomRespBadCode)
 	return s.SetMsg(err.Error()).json()
 }
 
+// Err Server error.
 func (s *Context) Err(err error) error {
-	s.SetCode(http.StatusInternalServerError)
+	s.SetStatus(CustomRespErrStatus).SetCode(CustomRespErrCode)
 	return s.SetMsg(err.Error()).json()
 }
 
-func (s *Context) Failed(msg string) error {
-	s.SetCode(1)
-	return s.SetMsg(msg).json()
+// ErrOk Server error or success.
+func (s *Context) ErrOk(err error) error {
+	if err != nil {
+		return s.Err(err)
+	}
+	return s.Ok()
 }
 
+// Failed Request processing failed.
+func (s *Context) Failed(msg error) error {
+	s.SetStatus(CustomRespFailedStatus).SetCode(CustomRespFailedCode)
+	return s.SetMsg(msg.Error()).json()
+}
+
+// Data Data in response to a query request, or a request for data other than a query request.
 func (s *Context) Data(data interface{}, failed error, err error) error {
 	if err != nil {
 		return s.Err(err)
 	}
 	if failed != nil {
-		return s.Failed(failed.Error())
+		return s.Failed(failed)
 	}
 	return s.SetData(data).Ok()
 }
 
-func (s *Context) TotalData(total int64, data interface{}, failed error, err error) error {
+// DataErr Server error or response success with data.
+func (s *Context) DataErr(data interface{}, err error) error {
 	if err != nil {
 		return s.Err(err)
 	}
-	if failed != nil {
-		return s.Failed(failed.Error())
-	}
-	return s.SetTotal(total).SetData(data).Ok()
+	return s.SetData(data).Ok()
 }
 
-func (s *Context) Result(failed error, err error) error {
+// TotalData Data in response to query requests.
+func (s *Context) TotalData(total int64, data interface{}, failed error, err error) error {
+	return s.SetTotal(total).Data(data, failed, err)
+}
+
+// Message Response to non-query request processing results.
+func (s *Context) Message(failed error, err error) error {
 	return s.Data(nil, failed, err)
 }
 
 const (
-	defaultResponseStatus = http.StatusOK
-	defaultResponseCode   = 0
-	defaultResponseMsg    = "success"
+	defaultRespStatus = http.StatusOK
+	defaultRespCode   = 0
+	defaultRespMsg    = "success"
 )
 
 const (
@@ -153,18 +187,18 @@ func (s *Route) PutBuffer(b *bytes.Buffer) {
 func (s *Route) GetContext(c echo.Context) *Context {
 	resp := s.context.Get().(*Context)
 	resp.Context = c
-	resp.status = defaultResponseStatus
-	resp.RespCode = defaultResponseCode
-	resp.RespMsg = defaultResponseMsg
+	resp.status = defaultRespStatus
+	resp.RespCode = defaultRespCode
+	resp.RespMsg = defaultRespMsg
 	resp.RespData = nil
 	return resp
 }
 
 func (s *Route) PutContext(c *Context) {
 	c.Context = nil
-	c.status = defaultResponseStatus
-	c.RespCode = defaultResponseCode
-	c.RespMsg = defaultResponseMsg
+	c.status = defaultRespStatus
+	c.RespCode = defaultRespCode
+	c.RespMsg = defaultRespMsg
 	c.RespData = nil
 	s.context.Put(c)
 }

@@ -187,7 +187,7 @@ func (s *Pull) PullBatch(ctx context.Context, duration time.Duration, batch int,
 		}
 		writes := make([][]byte, length)
 		for i := 0; i < length; i++ {
-			writes[i] = lists[num]
+			writes[i] = lists[i]
 		}
 
 		if err := handler(writes); err != nil {

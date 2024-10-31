@@ -3,50 +3,67 @@ package messagequeue
 import (
 	"context"
 	"fmt"
+	"github.com/cd365/blocks/log"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/rs/zerolog"
 	"sync"
 	"testing"
 	"time"
 )
 
+const (
+	amqpUrl            = "amqp://guest:guest@127.0.0.1:5672/vhost_guest"
+	amqpExchange       = "exchange_test1"
+	amqpRoutingKey1    = "routing_key_test1"
+	amqpRoutingKey2    = "routing_key_test2"
+	amqpExchangeDirect = "direct"
+	amqpExchangeTopic  = "topic"
+)
+
 func TestNewPush(t *testing.T) {
-	push, err := NewPush("", func(c *amqp.Channel) error {
-		return c.ExchangeDeclare("exchange1", "direct", true, false, false, false, nil)
-		// return c.ExchangeDeclare("exchange2", "topic", true, false, false, false, nil)
+	push, err := NewPush(amqpUrl, func(c *amqp.Channel) error {
+		return c.ExchangeDeclare(amqpExchange, amqpExchangeTopic, true, false, false, false, nil)
+		// return c.ExchangeDeclare(amqpExchange, amqpExchangeDirect, true, false, false, false, nil)
 	})
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	err = push.PushOnce(nil, "exchange1", "key1")
-	if err != nil {
-		t.Error(err)
-		return
+	defer func() { _ = push.Close() }()
+
+	push.Logger(log.DefaultLogger)
+
+	for i := 0; i < 10000; i++ {
+		err = push.PushOnce([]byte("112233"), amqpExchange, amqpRoutingKey1)
+		if err != nil {
+			panic(err)
+		}
 	}
+
+	<-time.After(time.Second * 3)
+
 }
 
 func TestNewPull(t *testing.T) {
-	pull, err := NewPull("", func(c *amqp.Channel) (<-chan amqp.Delivery, error) {
+	pull, err := NewPull(amqpUrl, func(c *amqp.Channel) (<-chan amqp.Delivery, error) {
 		if err := c.ExchangeDeclare(
-			"exchange1", // name of the exchange
-			"topic",     // type
-			true,        // durable
-			false,       // delete when complete
-			false,       // internal
-			false,       // noWait
-			nil,         // arguments
+			amqpExchange,      // name of the exchange
+			amqpExchangeTopic, // type
+			true,              // durable
+			false,             // delete when complete
+			false,             // internal
+			false,             // noWait
+			nil,               // arguments
 		); err != nil {
 			return nil, fmt.Errorf("exchange declare: %s", err.Error())
 		}
 
 		queue, err := c.QueueDeclare(
-			"queueName", // name of the queue
-			true,        // durable
-			false,       // delete when unused
-			false,       // exclusive
-			false,       // noWait
-			nil,         // arguments
+			"test_consume_queue1", // name of the queue
+			true,                  // durable
+			false,                 // delete when unused
+			false,                 // exclusive
+			false,                 // noWait
+			nil,                   // arguments
 		)
 		if err != nil {
 			return nil, fmt.Errorf("queue declare: %s", err.Error())
@@ -54,25 +71,36 @@ func TestNewPull(t *testing.T) {
 
 		// binding route key1
 		if err = c.QueueBind(
-			queue.Name,                 // name of the queue
-			zerolog.WarnLevel.String(), // bindingKey
-			"exchange1",                // sourceExchange
-			false,                      // noWait
-			nil,                        // arguments
+			queue.Name,      // name of the queue
+			amqpRoutingKey1, // bindingKey
+			amqpExchange,    // sourceExchange
+			false,           // noWait
+			nil,             // arguments
 		); err != nil {
 			return nil, fmt.Errorf("queue bind: %s", err.Error())
 		}
 
 		// binding route key2
 		if err = c.QueueBind(
-			queue.Name,                  // name of the queue
-			zerolog.ErrorLevel.String(), // bindingKey
-			"exchange1",                 // sourceExchange
-			false,                       // noWait
-			nil,                         // arguments
+			queue.Name,      // name of the queue
+			amqpRoutingKey2, // bindingKey
+			amqpExchange,    // sourceExchange
+			false,           // noWait
+			nil,             // arguments
 		); err != nil {
 			return nil, fmt.Errorf("queue bind: %s", err.Error())
 		}
+
+		// // binding all route keys
+		// if err = c.QueueBind(
+		// 	queue.Name,   // name of the queue
+		// 	"*",          // bindingKey
+		// 	amqpExchange, // sourceExchange
+		// 	false,        // noWait
+		// 	nil,          // arguments
+		// ); err != nil {
+		// 	return nil, fmt.Errorf("queue bind: %s", err.Error())
+		// }
 
 		err = c.Qos(8, 0, false)
 		if err != nil {
@@ -80,32 +108,42 @@ func TestNewPull(t *testing.T) {
 		}
 
 		return c.Consume(
-			queue.Name,     // name
-			"consumerTag1", // consumerTag,
-			false,          // autoAck
-			false,          // exclusive
-			false,          // noLocal
-			false,          // noWait
-			nil,            // arguments
+			queue.Name,           // name
+			"consumer_tag_test1", // consumerTag,
+			false,                // autoAck
+			false,                // exclusive
+			false,                // noLocal
+			false,                // noWait
+			nil,                  // arguments
 		)
 	})
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	wg := sync.WaitGroup{}
-	defer wg.Wait()
+	defer func() { _ = pull.Close() }()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*9)
+	pull.Logger(log.DefaultLogger)
+
+	wg := sync.WaitGroup{}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		pull.PullBatch(ctx, time.Second*3, 1000, func(messages [][]byte) error {
-			fmt.Printf("%v\n", messages)
+		pull.PullBatch(ctx, time.Second*5, 1000, func(messages [][]byte) error {
+			length := len(messages)
+			fmt.Printf("%d\n", length)
+			// msg := make([]string, length)
+			// for i := 0; i < length; i++ {
+			// 	msg[i] = string(messages[i])
+			// }
+			// fmt.Printf("%d %#v\n", length, msg)
 			return nil
 		})
 	}()
-
+	<-ctx.Done()
+	wg.Wait()
 }
