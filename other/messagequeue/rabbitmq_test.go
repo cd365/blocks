@@ -3,11 +3,12 @@ package messagequeue
 import (
 	"context"
 	"fmt"
-	"github.com/cd365/blocks/log"
-	amqp "github.com/rabbitmq/amqp091-go"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/cd365/blocks/log"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 const (
@@ -133,7 +134,7 @@ func TestNewPull(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		pull.PullBatch(ctx, time.Second*5, 1000, func(messages [][]byte) error {
+		pull.BatchProcess(ctx, time.Second*5, 1000, func(messages [][]byte) error {
 			length := len(messages)
 			fmt.Printf("%d\n", length)
 			// msg := make([]string, length)

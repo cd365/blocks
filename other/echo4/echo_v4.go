@@ -5,13 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cd365/blocks/log"
-	"github.com/cd365/g"
-	"github.com/go-playground/locales/zh"
-	ut "github.com/go-playground/universal-translator"
-	"github.com/go-playground/validator/v10"
-	tzh "github.com/go-playground/validator/v10/translations/zh"
-	"github.com/labstack/echo/v4"
 	"io"
 	"net/http"
 	"reflect"
@@ -19,6 +12,14 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cd365/blocks/log"
+	"github.com/cd365/g"
+	"github.com/go-playground/locales/zh"
+	ut "github.com/go-playground/universal-translator"
+	"github.com/go-playground/validator/v10"
+	tzh "github.com/go-playground/validator/v10/translations/zh"
+	"github.com/labstack/echo/v4"
 )
 
 // Customize HTTP response status code and business status code.
@@ -42,13 +43,13 @@ var CustomRespTotal = func(s *Context, total int64) {
 type Context struct {
 	echo.Context `json:"-"`
 
-	status int // http响应状态码
+	status int // http response status
 
-	/* 响应数据 */
-	RespCode  int         `json:"code"`            // 状态码 0:成功, !0:不成功
-	RespMsg   string      `json:"msg"`             // 描述语
-	RespData  interface{} `json:"data,omitempty"`  // 数据
-	RespTotal *int64      `json:"total,omitempty"` // 数据总条数
+	/* response data */
+	RespCode  int         `json:"code"`            // status code 0:success
+	RespMsg   string      `json:"msg"`             // status message
+	RespData  interface{} `json:"data,omitempty"`  // business data
+	RespTotal *int64      `json:"total,omitempty"` // total number of business data
 }
 
 func (s *Context) json() error {

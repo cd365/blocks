@@ -3,9 +3,10 @@ package messagequeue
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/cd365/blocks/log"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"time"
 )
 
 type Push struct {
@@ -167,7 +168,7 @@ func (s *Pull) Logger(logger *log.Logger) *Pull {
 	return s
 }
 
-func (s *Pull) PullBatch(ctx context.Context, duration time.Duration, batch int, handler func(messages [][]byte) error) {
+func (s *Pull) BatchProcess(ctx context.Context, duration time.Duration, batch int, handler func(messages [][]byte) error) {
 	var message amqp.Delivery
 	if batch <= 0 || batch > 10000 {
 		batch = 1000
