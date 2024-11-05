@@ -6,24 +6,24 @@ import (
 	"strings"
 )
 
-// OfCount 统计满足条件的总条数
+// OfCount Count the total number of entries that meet the conditions.
 type OfCount struct {
-	IsCount bool  `json:"count" query:"count" form:"count" validate:"-"` // 是否统计总条数
-	Count   int64 `json:"-" query:"-" form:"-" validate:"-"`             // 查到的数据总条数
+	IsCount bool  `json:"count" query:"count" form:"count" validate:"-"` // Whether the total number of entries is counted.
+	Count   int64 `json:"-" query:"-" form:"-" validate:"-"`             // The total number of data records found.
 }
 
-// OfKeyword 搜索关键字
+// OfKeyword Search for keywords.
 type OfKeyword struct {
-	Keyword *string `json:"keyword" query:"keyword" form:"keyword" validate:"omitempty,min=1,max=32"` // 检索关键字 [1,32]
+	Keyword *string `json:"keyword" query:"keyword" form:"keyword" validate:"omitempty,min=1,max=32"` // Search for keywords [1,32]
 }
 
 func (s OfKeyword) GetKeyword() string {
 	return fmt.Sprintf("%%%s%%", *s.Keyword)
 }
 
-// OfOrder 检索数据排序
+// OfOrder Sort the retrieved data.
 type OfOrder struct {
-	Order *string `json:"order" query:"order" form:"order" validate:"omitempty,min=1,max=255"` // 排序 [1,255] 字符串转十六进制函数(field1:a,field2:d,field3:a...)
+	Order *string `json:"order" query:"order" form:"order" validate:"omitempty,min=1,max=255"` // sort [1,255] StringToHex(field1:a,field2:d,field3:a...)
 }
 
 func (s OfOrder) GetOrder() string {
@@ -37,15 +37,15 @@ func (s OfOrder) GetOrder() string {
 	return *s.Order
 }
 
-// OfLimitOffset 控制数据列表返回的数据
+// OfLimitOffset Control the data returned by the data list.
 type OfLimitOffset struct {
-	// Limit 检索数据的条数 [1,1000]
+	// Limit The number of entries of retrieved data. [1,1000]
 	Limit *int64 `json:"limit" query:"limit" form:"limit" validate:"omitempty,min=1,max=1000"`
 
-	// Offset 已读数据的条数 [0,) (分页通过设置offset或viewed实现) offset 参数通用
+	// Offset Query offset. [0,)
 	Offset *int64 `json:"offset" query:"offset" form:"offset" validate:"omitempty,min=0"`
 
-	// Page 分页页码 [1,)
+	// Page Paginated page numbers. [1,)
 	Page *int64 `json:"page" query:"page" form:"page" validate:"omitempty,min=1"`
 }
 

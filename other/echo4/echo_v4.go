@@ -436,15 +436,15 @@ func NewValidator() (validate *Validator, err error) {
 	}
 
 	/*
-	 * 1. string类型字段非必填时必须要在最前面加 "omitempty"
-	 * 2. []string 要加 "dive" 才会生效
-	 * 3. 有空格的字符串不能使用 "alpha"
-	 * 4. []map[string]string 类型需要使用两个 dive 才能控制 key 和 value 的校验规则
+	 * 1. if the string field is not required, it must be preceded by "omitempty".
+	 * 2. []string must be added with "dive" for it to take effect.
+	 * 3. strings with spaces cannot use "alpha".
+	 * 4. type []map[string]string requires two dives to control the validation rules for the key and value.
 	 */
 
-	// 自定义校验规则
+	// Customize validation rules.
 
-	// 校验GET请求的query参数order
+	// Verify the query parameter order of the GET request.
 	err = validate.Validator.RegisterValidation(
 		"order",
 		func(fl validator.FieldLevel) bool {
