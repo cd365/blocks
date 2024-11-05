@@ -1,4 +1,6 @@
-package messagequeue
+// Message queues implemented by RabbitMQ.
+
+package mq
 
 import (
 	"context"
@@ -175,18 +177,13 @@ func (s *Pull) BatchProcess(ctx context.Context, timerDuration time.Duration, ba
 		if length == 0 {
 			return
 		}
-		writes := make([]*amqp.Delivery, length)
-		for i := 0; i < length; i++ {
-			writes[i] = lists[i]
-		}
 
-		if err := handler(writes); err != nil {
+		if err := handler(lists); err != nil {
 			if s.logger != nil {
-				content := make([]string, length)
 				for i := 0; i < length; i++ {
-					content[i] = string(writes[i].Body)
+					lists[i].Acknowledger = nil
 				}
-				s.logger.Warn().Strs("content", content).Msg(err.Error())
+				s.logger.Warn().Any("content", lists).Msg(err.Error())
 			}
 		}
 

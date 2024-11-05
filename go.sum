@@ -1,5 +1,5 @@
-github.com/cd365/g v0.1.3 h1:6PrmyjBOH5lCj07r3+X4Lz9CkP1FR13fBEeqvYMxKmI=
-github.com/cd365/g v0.1.3/go.mod h1:7C4M30D7ZE9Lr32UGdT6UN9u8x0YmbM9pC9vOJb0ZlI=
+github.com/cd365/g v0.1.4 h1:742y8mb0u+SzWkoi2UqGSHvIxHvN4G8k94JdejfKgIY=
+github.com/cd365/g v0.1.4/go.mod h1:7C4M30D7ZE9Lr32UGdT6UN9u8x0YmbM9pC9vOJb0ZlI=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

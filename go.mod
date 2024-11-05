@@ -3,7 +3,7 @@ module github.com/cd365/blocks
 go 1.23.2
 
 require (
-	github.com/cd365/g v0.1.3
+	github.com/cd365/g v0.1.4
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.22.1

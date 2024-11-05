@@ -1,4 +1,6 @@
-package messagequeue
+// Message queues implemented by RabbitMQ.
+
+package mq
 
 import (
 	"context"
