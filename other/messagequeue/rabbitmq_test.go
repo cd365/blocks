@@ -34,7 +34,9 @@ func TestNewPush(t *testing.T) {
 	push.Logger(log.DefaultLogger)
 
 	for i := 0; i < 10000; i++ {
-		err = push.PushOnce([]byte("112233"), amqpExchange, amqpRoutingKey1)
+		err = push.PublishContext(context.Background(), amqpExchange, amqpRoutingKey1, &amqp.Publishing{
+			Body: []byte("112233"),
+		})
 		if err != nil {
 			panic(err)
 		}
@@ -134,12 +136,12 @@ func TestNewPull(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		pull.BatchProcess(ctx, time.Second*5, 1000, func(messages [][]byte) error {
+		pull.BatchProcess(ctx, time.Second*5, 1000, func(messages []*amqp.Delivery) error {
 			length := len(messages)
 			fmt.Printf("%d\n", length)
 			// msg := make([]string, length)
 			// for i := 0; i < length; i++ {
-			// 	msg[i] = string(messages[i])
+			// 	msg[i] = string(messages[i].Body)
 			// }
 			// fmt.Printf("%d %#v\n", length, msg)
 			return nil

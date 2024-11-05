@@ -19,6 +19,16 @@ type Push struct {
 	logger *log.Logger
 }
 
+func (s *Push) Close() error {
+	if s.channel != nil {
+		_ = s.channel.Close()
+	}
+	if s.conn != nil {
+		_ = s.conn.Close()
+	}
+	return nil
+}
+
 func (s *Push) initial() error {
 	_ = s.Close()
 	conn, err := amqp.Dial(s.url)
@@ -39,16 +49,6 @@ func (s *Push) initial() error {
 	return nil
 }
 
-func (s *Push) Close() error {
-	if s.channel != nil {
-		_ = s.channel.Close()
-	}
-	if s.conn != nil {
-		_ = s.conn.Close()
-	}
-	return nil
-}
-
 func NewPush(url string, buildExchange func(c *amqp.Channel) error) (*Push, error) {
 	push := &Push{
 		url:           url,
@@ -65,45 +65,32 @@ func (s *Push) Logger(logger *log.Logger) *Push {
 	return s
 }
 
-func (s *Push) PushOnce(message []byte, exchangeName, routingKey string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
+func (s *Push) PublishContext(ctx context.Context, exchangeName, routingKey string, message *amqp.Publishing) error {
+	if message == nil {
+		return nil
+	}
 	if s.channel.IsClosed() {
 		return fmt.Errorf("channel is closed")
 	}
-	err := s.channel.PublishWithContext(
-		ctx,
-		exchangeName, // exchange
-		routingKey,   // routing key
-		false,        // mandatory
-		false,        // immediate
-		amqp.Publishing{
-			ContentType: "text/plain",
-			Body:        message,
-		},
-	)
+	err := s.channel.PublishWithContext(ctx, exchangeName, routingKey, false, false, *message)
 	if err != nil {
 		if s.logger != nil {
-			s.logger.Warn().Bytes("content", message).Str("error", err.Error()).Msg("message push failed")
+			s.logger.Warn().Any("content", message).Msg(err.Error())
 		}
-		return fmt.Errorf("failed to publish a message: %v", err.Error())
 	}
-	return nil
+	return err
 }
 
-func (s *Push) PushRetry(message []byte, exchangeName, routingKey string, retry int) (err error) {
+func (s *Push) PublishContextRetry(ctx context.Context, exchangeName, routingKey string, message *amqp.Publishing, retry int, duration time.Duration) (err error) {
 	if retry <= 0 {
 		retry = 1
 	}
 	for i := 0; i < retry; i++ {
-		if err = s.PushOnce(message, exchangeName, routingKey); err == nil {
+		if err = s.PublishContext(ctx, exchangeName, routingKey, message); err == nil {
 			break
 		}
-		if s.logger != nil {
-			s.logger.Warn().Msg("will retry push message")
-		}
 		if err = s.initial(); err != nil {
-			<-time.After(time.Millisecond * 200)
+			<-time.After(duration)
 		}
 	}
 	return
@@ -168,25 +155,27 @@ func (s *Pull) Logger(logger *log.Logger) *Pull {
 	return s
 }
 
-func (s *Pull) BatchProcess(ctx context.Context, duration time.Duration, batch int, handler func(messages [][]byte) error) {
-	var message amqp.Delivery
+func (s *Pull) BatchProcess(ctx context.Context, timerDuration time.Duration, batch int, handler func(messages []*amqp.Delivery) error) {
 	if batch <= 0 || batch > 10000 {
 		batch = 1000
 	}
-	// 已被确认的消息列表
-	lists := make([][]byte, 0, batch)
-	// 已被确认的消息的数量
+
+	// a list of messages that have been acknowledged.
+	lists := make([]*amqp.Delivery, 0, batch)
+
+	// the number of messages that have been acknowledged.
 	num := 0
-	// 消息批处理的最后时间
+
+	// the last time when the message batch was processed.
 	lastWriteAt := time.Now()
 
-	// 批处理消息(单线程调用)
+	// batch messages (single-threaded calls).
 	write := func() {
 		length := len(lists)
 		if length == 0 {
 			return
 		}
-		writes := make([][]byte, length)
+		writes := make([]*amqp.Delivery, length)
 		for i := 0; i < length; i++ {
 			writes[i] = lists[i]
 		}
@@ -195,26 +184,26 @@ func (s *Pull) BatchProcess(ctx context.Context, duration time.Duration, batch i
 			if s.logger != nil {
 				content := make([]string, length)
 				for i := 0; i < length; i++ {
-					content[i] = string(writes[i])
+					content[i] = string(writes[i].Body)
 				}
-				s.logger.Warn().Strs("content", content).Err(err).Msg("batch message failed")
+				s.logger.Warn().Strs("content", content).Msg(err.Error())
 			}
 		}
 
-		// 重新初始化
-		lists = make([][]byte, 0, batch)
+		// reinitialization.
+		lists = make([]*amqp.Delivery, 0, batch)
 		num = 0
 		lastWriteAt = time.Now()
 	}
 
 	defer func() {
 		if rec := recover(); rec != nil {
-			fmt.Printf("panic logger.consumer: %v\n", rec)
+			fmt.Printf("panic message queue consumer: %v\n", rec)
 		}
 		write()
 	}()
 
-	timer := time.NewTimer(duration)
+	timer := time.NewTimer(timerDuration)
 	defer timer.Stop()
 
 	for {
@@ -223,19 +212,19 @@ func (s *Pull) BatchProcess(ctx context.Context, duration time.Duration, batch i
 			write()
 			return
 		case <-timer.C:
-			if time.Now().Sub(lastWriteAt) >= 3 {
+			if time.Now().Unix()-lastWriteAt.Unix() >= 3 {
 				write()
 			}
-			timer.Reset(duration)
-		case message = <-s.deliveries:
+			timer.Reset(timerDuration)
+		case message := <-s.deliveries:
 			if err := message.Ack(false); err != nil {
 				write()
 				for err = s.initial(); err != nil; {
-					<-time.After(time.Millisecond * 200)
+					<-time.After(time.Millisecond * 500)
 				}
 				break
 			}
-			lists = append(lists, message.Body)
+			lists = append(lists, &message)
 			num++
 
 			if num >= batch {
