@@ -156,11 +156,9 @@ type Route struct {
 	buffer  *sync.Pool
 	context *sync.Pool
 
-	level      map[string]string
-	levelMutex *g.Mutex
+	level *g.Memory[string]
 
-	name      map[string]string
-	nameMutex *g.Mutex
+	name *g.Memory[string]
 }
 
 func NewRoute() *Route {
@@ -168,11 +166,8 @@ func NewRoute() *Route {
 		buffer:  &sync.Pool{New: func() interface{} { return bytes.NewBuffer(nil) }},
 		context: &sync.Pool{New: func() interface{} { return &Context{} }},
 
-		level:      make(map[string]string, 32),
-		levelMutex: g.NewMutex(),
-
-		name:      make(map[string]string, 32),
-		nameMutex: g.NewMutex(),
+		level: g.NewMemory[string](1),
+		name:  g.NewMemory[string](1),
 	}
 }
 
@@ -250,8 +245,8 @@ func (s *Route) Register(
 		routePathLevel = RoutePathLevelNormal
 	}
 	route.Name = routePathName
-	s.levelMutex.WithLock(func() { s.level[routePath] = routePathLevel })
-	s.nameMutex.WithLock(func() { s.name[routePath] = routePathName })
+	s.level.Set(routePath, routePathLevel)
+	s.name.Set(routePath, routePathName)
 	return s
 }
 
