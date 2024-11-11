@@ -1,5 +1,9 @@
 package program
 
+import (
+	"bytes"
+)
+
 const (
 	ModeDebug   = "DEBUG"
 	ModeTest    = "TEST"
@@ -30,4 +34,21 @@ func IsTestMode() bool {
 
 func IsReleaseMode() bool {
 	return RunMode == ModeRelease
+}
+
+func Details() string {
+	b := bytes.NewBuffer([]byte(Version))
+	if BuildAt != "" {
+		b.WriteString(" ")
+		b.WriteString(BuildAt)
+	}
+	if VersionControlId != "" {
+		b.WriteString(" ")
+		b.WriteString(VersionControlId)
+	}
+	if RunMode != "" {
+		b.WriteString(" ")
+		b.WriteString(RunMode)
+	}
+	return b.String()
 }

@@ -42,11 +42,11 @@ type OfLimitOffset struct {
 	// Limit The number of entries of retrieved data. [1,1000]
 	Limit *int64 `json:"limit" query:"limit" form:"limit" validate:"omitempty,min=1,max=1000"`
 
-	// Offset Query offset. [0,)
-	Offset *int64 `json:"offset" query:"offset" form:"offset" validate:"omitempty,min=0"`
+	// Offset Query offset. [0,10000000]
+	Offset *int64 `json:"offset" query:"offset" form:"offset" validate:"omitempty,min=0,max=10000000"`
 
-	// Page Paginated page numbers. [1,)
-	Page *int64 `json:"page" query:"page" form:"page" validate:"omitempty,min=1"`
+	// Page Paginated page numbers. [1,10000]
+	Page *int64 `json:"page" query:"page" form:"page" validate:"omitempty,min=1,max=10000"`
 }
 
 func (s OfLimitOffset) GetLimit() int64 {
