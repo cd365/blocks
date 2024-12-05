@@ -48,3 +48,8 @@ func GoogleAuthenticator(secret string) (verifyCode string, remainSeconds int64,
 	pwd := number % 1000000
 	return fmt.Sprintf("%06d", pwd), remainSeconds, nil
 }
+
+// NewGoogleAuthenticatorSecret Create a Google authentication key from a random string(base32 characters).
+func NewGoogleAuthenticatorSecret(length int) string {
+	return RandomString(length, []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567")...)
+}
