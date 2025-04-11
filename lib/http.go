@@ -21,7 +21,7 @@ func HttpAddUrlQuery(rawUrl string, urlQuery map[string]string) (string, error) 
 	return urlParse.String(), nil
 }
 
-func HttpRequest(method string, rawUrl string, body []byte, clientRequest func(client *http.Client, request *http.Request) error, handler func(response *http.Response) error) error {
+func HttpRequest(method string, rawUrl string, body []byte, clientRequest func(client *http.Client, request *http.Request) error, handler func(request *http.Request, response *http.Response) error) error {
 	var bodyReader io.Reader
 	if body != nil {
 		bodyReader = bytes.NewBuffer(body)
@@ -42,21 +42,21 @@ func HttpRequest(method string, rawUrl string, body []byte, clientRequest func(c
 		return err
 	}
 	defer func() { _ = response.Body.Close() }()
-	return handler(response)
+	return handler(request, response)
 }
 
-func HttpGet(rawUrl string, clientRequest func(client *http.Client, request *http.Request) error, handler func(response *http.Response) error) error {
+func HttpGet(rawUrl string, clientRequest func(client *http.Client, request *http.Request) error, handler func(request *http.Request, response *http.Response) error) error {
 	return HttpRequest(http.MethodGet, rawUrl, nil, clientRequest, handler)
 }
 
-func HttpPost(rawUrl string, body []byte, clientRequest func(client *http.Client, request *http.Request) error, handler func(response *http.Response) error) error {
+func HttpPost(rawUrl string, body []byte, clientRequest func(client *http.Client, request *http.Request) error, handler func(request *http.Request, response *http.Response) error) error {
 	return HttpRequest(http.MethodPost, rawUrl, body, clientRequest, handler)
 }
 
-func HttpPut(rawUrl string, body []byte, clientRequest func(client *http.Client, request *http.Request) error, handler func(response *http.Response) error) error {
+func HttpPut(rawUrl string, body []byte, clientRequest func(client *http.Client, request *http.Request) error, handler func(request *http.Request, response *http.Response) error) error {
 	return HttpRequest(http.MethodPut, rawUrl, body, clientRequest, handler)
 }
 
-func HttpDelete(rawUrl string, body []byte, clientRequest func(client *http.Client, request *http.Request) error, handler func(response *http.Response) error) error {
+func HttpDelete(rawUrl string, body []byte, clientRequest func(client *http.Client, request *http.Request) error, handler func(request *http.Request, response *http.Response) error) error {
 	return HttpRequest(http.MethodDelete, rawUrl, body, clientRequest, handler)
 }
