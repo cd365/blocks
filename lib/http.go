@@ -21,6 +21,14 @@ func HttpAddUrlQuery(rawUrl string, urlQuery map[string]string) (string, error) 
 	return urlParse.String(), nil
 }
 
+// HttpRequestUserAgent Customize the User-Agent header of the http request.
+func HttpRequestUserAgent(req *http.Request, userAgent string) {
+	if userAgent == "" {
+		userAgent = "HTTP Client"
+	}
+	req.Header.Set("User-Agent", userAgent)
+}
+
 func HttpRequest(method string, rawUrl string, body []byte, clientRequest func(client *http.Client, request *http.Request) error, handler func(request *http.Request, response *http.Response) error) error {
 	var bodyReader io.Reader
 	if body != nil {
